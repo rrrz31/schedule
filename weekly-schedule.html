@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>週課表</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif; min-height: 100vh; padding-bottom: 100px; overscroll-behavior: contain; }
+#header { padding: 28px 20px 0; transition: background 0.3s; }
+#header-top { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 14px; }
+#day-label { font-size: 32px; font-weight: 900; color: #fff; line-height: 1; }
+#day-theme { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 5px; }
+#header-btns { display: flex; gap: 8px; align-items: center; }
+#reset-btn { background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 14px; color: #fff; font-size: 12px; cursor: pointer; }
+#save-btn { background: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.1s; }
+#save-btn:active { transform: scale(0.95); }
+#tabs { display: flex; gap: 6px; padding: 0 20px 16px; overflow-x: auto; }
+#tabs::-webkit-scrollbar { display: none; }
+.tab { flex-shrink: 0; border: none; border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.tab.active { background: #fff; }
+.tab.inactive { background: rgba(255,255,255,0.22); color: rgba(255,255,255,0.85); }
+#stats { background: #fff; margin: 12px 16px; border-radius: 14px; padding: 12px 20px; border: 1px solid #ede8e0; display: flex; align-items: center; gap: 8px; }
+#stat-label { font-size: 12px; color: #b0a090; }
+#stat-total { font-size: 22px; font-weight: 900; color: #2a2218; margin-left: auto; }
+#stat-unit { font-size: 12px; color: #b0a090; }
+#stat-done { font-size: 11px; color: #b0a090; margin-left: 10px; }
+#blocks-container { padding: 0 16px; }
+.hint { font-size: 10px; color: #c0b8a8; letter-spacing: 0.12em; margin-bottom: 10px; padding: 0 2px; }
+.section-label { font-size: 11px; color: #b0a090; font-weight: 600; letter-spacing: 0.1em; margin: 12px 2px 6px; }
+.block {
+  border-radius: 14px; padding: 13px 16px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  position: relative; border: 1.5px solid #ede8e0; border-left-width: 5px;
+  user-select: none; touch-action: pan-y;
+  transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s;
+}
+.block.done { opacity: 0.45; }
+.block.done .block-name { text-decoration: line-through; text-decoration-thickness: 2px; }
+.block.dragging { opacity: 0.3; touch-action: none; }
+.block.drag-over { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.13); }
+.block-ghost {
+  position: fixed; pointer-events: none; z-index: 999;
+  border-radius: 14px; padding: 13px 16px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.22);
+  transform: scale(1.05) rotate(1.5deg);
+  width: calc(100vw - 32px); left: 16px;
+  border: 1.5px solid #ede8e0; border-left-width: 5px;
+}
+.check-circle {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid #e0d8d0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; transition: all 0.2s;
+}
+.block.done .check-circle { background: #52b788; border-color: #52b788; color: #fff; }
+.block-emoji { font-size: 22px; flex-shrink: 0; }
+.block-info { flex: 1; min-width: 0; }
+.block-name { font-size: 15px; font-weight: 700; transition: all 0.2s; }
+.block-desc { font-size: 11px; color: #b0a090; margin-top: 2px; }
+.block-handle { font-size: 18px; color: #d0c8bc; flex-shrink: 0; padding: 4px 0 4px 8px; }
+.custom-input {
+  width: 100%; border: none; background: transparent;
+  font-size: 11px; color: #6a5a4a; outline: none;
+  font-family: 'PingFang TC','Noto Sans TC',sans-serif; margin-top: 4px;
+}
+.custom-input::placeholder { color: #d0c8bc; }
+.empty-weekend { text-align: center; padding: 48px 20px; color: #c0b8a8; font-size: 15px; line-height: 2; }
+#copy-panel { background: #fff; margin: 10px 16px 0; border-radius: 14px; border: 1px solid #ede8e0; overflow: hidden; }
+#copy-header { padding: 11px 14px; font-size: 12px; color: #b0a090; cursor: pointer; display: flex; justify-content: space-between; }
+#copy-content { padding: 0 14px 12px; display: none; }
+.copy-day-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f5f0ea; }
+.copy-day-row:last-child { border-bottom: none; }
+.copy-day-name { font-size: 13px; font-weight: 600; color: #2a2218; }
+.copy-day-theme { font-size: 10px; color: #b0a090; }
+.copy-btn { background: #f5f0ea; border: none; border-radius: 20px; padding: 5px 12px; font-size: 11px; color: #6a5a4a; cursor: pointer; }
+#dots { position: fixed; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
+.dot { height: 6px; border-radius: 3px; transition: all 0.2s; background: #d0c8bc; pointer-events: all; cursor: pointer; }
+#toast { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2a2218; color: #fff; border-radius: 20px; padding: 8px 20px; font-size: 13px; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; z-index: 9999; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div id="header">
+  <div id="header-top">
+    <div><div id="day-label"></div><div id="day-theme"></div></div>
+    <div id="header-btns">
+      <button id="reset-btn" onclick="resetDay()">重置</button>
+      <button id="save-btn" onclick="saveState()">💾 儲存</button>
+    </div>
+  </div>
+  <div id="tabs"></div>
+</div>
+<div id="stats">
+  <div id="stat-label">今日工作時長</div>
+  <div id="stat-total">0</div>
+  <div id="stat-unit">小時</div>
+  <div id="stat-done"></div>
+</div>
+<div id="blocks-container">
+  <div class="hint">點擊劃掉完成 · 長按 ⠿ 拖移</div>
+  <div id="block-list"></div>
+</div>
+<div id="copy-panel">
+  <div id="copy-header" onclick="toggleCopyPanel()">
+    <span>📋 複製今天的板塊到其他天</span>
+    <span id="copy-arrow">▼</span>
+  </div>
+  <div id="copy-content"></div>
+</div>
+<div id="dots"></div>
+<div id="toast"></div>
+
+<script>
+const BT = {
+  social:   { label:"社群養成",       emoji:"📱", color:"#e07c3a", bg:"#fff7ed", border:"#fed7aa", desc:"三帳號各15分 · 45min",        min:45 },
+  create:   { label:"創作",           emoji:"🎨", color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0", desc:"做甲片 · 自創 · 60min",       min:60 },
+  gardden:  { label:"Gardden 靈感",   emoji:"🌸", color:"#c77daa", bg:"#fff0f8", border:"#f8c8e8", desc:"Gardden Nail · 45min",         min:45 },
+  dystopia: { label:"dys/topia 靈感", emoji:"🖤", color:"#3d3d4e", bg:"#f4f4f8", border:"#c8c8d8", desc:"dys/topia select · 45min",     min:45 },
+  content:  { label:"內容製作",       emoji:"🎬", color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd", desc:"剪片修圖排程 · 60min",         min:60 },
+  review:   { label:"檢討回顧",       emoji:"📊", color:"#b45309", bg:"#fffbeb", border:"#fde68a", desc:"對帳 · 數據 · 60min",          min:60 },
+  plan:     { label:"計畫",           emoji:"📋", color:"#0f766e", bg:"#f0fdfa", border:"#99f6e4", desc:"規劃本週 · 45min",             min:45 },
+  clean:    { label:"整理工作室",     emoji:"🧹", color:"#be185d", bg:"#fdf2f8", border:"#fbcfe8", desc:"每1–2週 · 60min",             min:60 },
+  reply:    { label:"回覆客人",       emoji:"💬", color:"#6366f1", bg:"#eef2ff", border:"#c7d2fe", desc:"回覆訊息 · 15min",             min:15 },
+  rest:     { label:"休息",           emoji:"☕", color:"#9ca3af", bg:"#f9fafb", border:"#e5e7eb", desc:"完全放空 · 15min",             min:0  },
+  rest10:   { label:"短休",           emoji:"🫧", color:"#9ca3af", bg:"#f9fafb", border:"#e5e7eb", desc:"短暫休息 · 10min",             min:0  },
+  lunch:    { label:"午休",           emoji:"🍱", color:"#d97706", bg:"#fffbeb", border:"#fde68a", desc:"吃飯休息 · 30min",             min:0  },
+  other:    { label:"其他",           emoji:"📝", color:"#64748b", bg:"#f8fafc", border:"#cbd5e1", desc:"自訂內容",                    min:60, custom:true },
+};
+
+const DAYS = [
+  { key:"mon", label:"週一", theme:"沉澱＋計畫",  color:"#c8a96e",
+    blocks:["social","rest","reply","plan","rest","content","rest10","content","lunch","review","rest","reply","gardden","dystopia"] },
+  { key:"tue", label:"週二", theme:"創作日",      color:"#52b788",
+    blocks:["social","rest","reply","create","rest10","create","lunch","create","rest10","create","rest10","reply","create","gardden","dystopia"] },
+  { key:"wed", label:"週三", theme:"創作日",      color:"#52b788",
+    blocks:["social","rest","reply","create","rest10","create","lunch","create","rest10","create","rest10","reply","create","gardden","dystopia"] },
+  { key:"thu", label:"週四", theme:"創作日",      color:"#9b72cf",
+    blocks:["social","rest","reply","create","rest10","create","lunch","create","rest10","create","rest10","reply","create","gardden","dystopia"] },
+  { key:"fri", label:"週五", theme:"檢討日",      color:"#e07c3a",
+    blocks:["social","rest","reply","create","rest10","create","lunch","review","rest","clean","reply","other","gardden","dystopia"] },
+  { key:"weekend", label:"週末", theme:"補完日",  color:"#a8a29e", weekend:true },
+];
+
+const WEEKDAYS = DAYS.filter(d => !d.weekend);
+const _dk = ["weekend","mon","tue","wed","thu","fri","weekend"][new Date().getDay()];
+const todayKey = _dk;
+let currentIdx = DAYS.findIndex(d => d.key === todayKey);
+if (currentIdx < 0) currentIdx = 0;
+
+let schedule = {};
+WEEKDAYS.forEach(d => { schedule[d.key] = [...d.blocks]; });
+let completed = {};
+let customText = {};
+
+// ── load state passed in from Shortcut via URL hash ──
+function loadFromHash() {
+  try {
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    const data = JSON.parse(decodeURIComponent(atob(hash)));
+    if (data.completed) completed = data.completed;
+    if (data.customText) customText = data.customText;
+    if (data.schedule) {
+      Object.keys(data.schedule).forEach(k => { schedule[k] = data.schedule[k]; });
+    }
+    // clear hash so it doesn't linger
+    history.replaceState(null, '', location.pathname);
+  } catch(e) {}
+}
+loadFromHash();
+
+// ── save: encode state and call 儲存課表 shortcut ──
+function saveState() {
+  const data = { completed, customText, schedule };
+  const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
+  // call the 儲存課表 shortcut with encoded state as input
+  window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('儲存課表') + '&input=' + encodeURIComponent(encoded);
+  showToast('已儲存 ✓');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function getIncomplete() {
+  const result = [];
+  WEEKDAYS.forEach(d => {
+    schedule[d.key].forEach((type, idx) => {
+      const t = BT[type];
+      if (!t || t.min === 0) return;
+      if (!completed[d.key+':'+idx]) result.push({ srcDay:d, type, idx, t });
+    });
+  });
+  return result;
+}
+
+function render() {
+  const day = DAYS[currentIdx];
+  document.getElementById('header').style.background = day.color;
+  document.getElementById('day-label').textContent = day.label;
+  document.getElementById('day-theme').textContent = day.theme;
+
+  // save btn color matches day
+  const sb = document.getElementById('save-btn');
+  sb.style.color = day.color;
+
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab ' + (i === currentIdx ? 'active' : 'inactive');
+    btn.style.color = i === currentIdx ? day.color : 'rgba(255,255,255,0.85)';
+    let suffix = d.key === todayKey ? ' ●' : '';
+    if (d.weekend) {
+      if (getIncomplete().length > 0) suffix += ' !';
+    } else {
+      const dc = schedule[d.key].filter((_,idx) => completed[d.key+':'+idx]).length;
+      if (dc > 0) suffix += ' ✓';
+    }
+    btn.textContent = d.label.replace('週','') + suffix;
+    btn.onclick = () => { currentIdx = i; render(); };
+    tabsEl.appendChild(btn);
+  });
+
+  const list = document.getElementById('block-list');
+  list.innerHTML = '';
+
+  if (day.weekend) {
+    document.getElementById('copy-panel').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'none';
+    document.getElementById('stat-label').textContent = '本週未完成';
+    document.getElementById('stat-unit').textContent = '項';
+
+    const inc = getIncomplete();
+    const wdone = inc.filter(item => !!completed['weekend:'+item.srcDay.key+':'+item.idx]).length;
+    document.getElementById('stat-total').textContent = inc.length - wdone;
+    document.getElementById('stat-done').textContent = wdone > 0 ? '已補完 '+wdone+' 項' : '';
+
+    if (inc.length === 0) {
+      list.innerHTML = '<div class="empty-weekend">🎉<br>本週全部完成了！<br>好好休息</div>';
+    } else {
+      let lastDay = null;
+      inc.forEach(item => {
+        if (item.srcDay.key !== lastDay) {
+          lastDay = item.srcDay.key;
+          const lbl = document.createElement('div');
+          lbl.className = 'section-label';
+          lbl.textContent = item.srcDay.label + ' 未完成';
+          list.appendChild(lbl);
+        }
+        const wKey = 'weekend:'+item.srcDay.key+':'+item.idx;
+        const isDone = !!completed[wKey];
+        const el = document.createElement('div');
+        el.className = 'block' + (isDone ? ' done' : '');
+        el.style.background = item.t.bg;
+        el.style.borderColor = item.t.border;
+        el.style.borderLeftColor = isDone ? '#c0c0c0' : item.t.color;
+        el.innerHTML =
+          '<div class="check-circle">'+(isDone?'✓':'')+'</div>'+
+          '<div class="block-emoji">'+item.t.emoji+'</div>'+
+          '<div class="block-info">'+
+            '<div class="block-name" style="color:'+(isDone?'#aaa':item.t.color)+'">'+item.t.label+'</div>'+
+            '<div class="block-desc">'+item.t.desc+'</div>'+
+          '</div>';
+        el.addEventListener('click', () => {
+          completed[wKey] = !completed[wKey];
+          render();
+        });
+        list.appendChild(el);
+      });
+    }
+
+    renderDots();
+    return;
+  }
+
+  document.getElementById('copy-panel').style.display = '';
+  document.getElementById('reset-btn').style.display = '';
+  document.getElementById('stat-label').textContent = '今日工作時長';
+  document.getElementById('stat-unit').textContent = '小時';
+
+  const blocks = schedule[day.key];
+  let totalMin = 0, doneCount = 0, workCount = 0;
+  blocks.forEach((b, idx) => {
+    const t = BT[b]; if (!t) return;
+    if (t.min > 0) { totalMin += t.min; workCount++; if (completed[day.key+':'+idx]) doneCount++; }
+  });
+  document.getElementById('stat-total').textContent = (totalMin/60).toFixed(1).replace(/\.0$/,'');
+  document.getElementById('stat-done').textContent = workCount > 0 ? doneCount+'/'+workCount+' 完成' : '';
+
+  blocks.forEach((type, idx) => {
+    const t = BT[type]; if (!t) return;
+    const isDone = !!completed[day.key+':'+idx];
+    const el = document.createElement('div');
+    el.className = 'block' + (isDone ? ' done' : '');
+    el.style.background = t.bg;
+    el.style.borderColor = t.border;
+    el.style.borderLeftColor = isDone ? '#c0c0c0' : t.color;
+    el.dataset.idx = idx;
+    const ckey = day.key+':c:'+idx;
+    const customHtml = t.custom
+      ? '<input class="custom-input" placeholder="輸入今天的內容…" value="'+(customText[ckey]||'').replace(/"/g,'&quot;')+'" data-ckey="'+ckey+'" oninput="saveCustom(this)" onclick="event.stopPropagation()">'
+      : '';
+    el.innerHTML =
+      '<div class="check-circle">'+(isDone?'✓':'')+'</div>'+
+      '<div class="block-emoji">'+t.emoji+'</div>'+
+      '<div class="block-info">'+
+        '<div class="block-name" style="color:'+(isDone?'#aaa':t.color)+'">'+t.label+'</div>'+
+        '<div class="block-desc">'+t.desc+'</div>'+
+        customHtml+
+      '</div>'+
+      '<div class="block-handle" data-handle="1">⠿</div>';
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-handle]') || e.target.tagName === 'INPUT') return;
+      completed[day.key+':'+idx] = !completed[day.key+':'+idx];
+      render();
+    });
+    setupDrag(el, idx);
+    list.appendChild(el);
+  });
+
+  renderCopyPanel();
+  renderDots();
+}
+
+function renderDots() {
+  const day = DAYS[currentIdx];
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.width = i === currentIdx ? '20px' : '6px';
+    dot.style.background = i === currentIdx ? day.color : '#d0c8bc';
+    dot.onclick = () => { currentIdx = i; render(); };
+    dotsEl.appendChild(dot);
+  });
+}
+
+function saveCustom(input) { customText[input.dataset.ckey] = input.value; }
+
+function resetDay() {
+  const key = DAYS[currentIdx].key;
+  schedule[key] = [...DAYS.find(d => d.key === key).blocks];
+  Object.keys(completed).forEach(k => { if (k.startsWith(key+':')) delete completed[k]; });
+  render();
+}
+
+let dragState = null, ghostEl = null;
+function setupDrag(el, idx) {
+  el.addEventListener('touchstart', e => {
+    if (!e.target.closest('[data-handle]')) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    dragState = { srcIdx:idx, active:false };
+    dragState.timer = setTimeout(() => {
+      if (!dragState) return;
+      dragState.active = true;
+      el.classList.add('dragging');
+      const rect = el.getBoundingClientRect();
+      ghostEl = el.cloneNode(true);
+      ghostEl.classList.add('block-ghost');
+      ghostEl.style.background = el.style.background;
+      ghostEl.style.borderColor = el.style.borderColor;
+      ghostEl.style.borderLeftColor = el.style.borderLeftColor;
+      ghostEl.style.top = (touch.clientY - rect.height/2)+'px';
+      document.body.appendChild(ghostEl);
+      if (navigator.vibrate) navigator.vibrate(25);
+    }, 350);
+  }, { passive:false });
+  el.addEventListener('touchmove', e => {
+    if (!dragState || !dragState.active) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (ghostEl) ghostEl.style.top = (touch.clientY - el.getBoundingClientRect().height/2)+'px';
+    const els = document.querySelectorAll('#block-list .block:not(.dragging)');
+    let ti = schedule[DAYS[currentIdx].key].length-1;
+    els.forEach(b => { const r = b.getBoundingClientRect(); if (touch.clientY > r.top+r.height/2) ti = parseInt(b.dataset.idx); });
+    dragState.targetIdx = ti;
+    els.forEach(b => b.classList.remove('drag-over'));
+    let near=null, nearD=Infinity;
+    els.forEach(b => { const r=b.getBoundingClientRect(); const d=Math.abs(touch.clientY-(r.top+r.height/2)); if(d<nearD){nearD=d;near=b;} });
+    if (near) near.classList.add('drag-over');
+  }, { passive:false });
+  const end = () => {
+    if (!dragState) return;
+    clearTimeout(dragState.timer);
+    if (dragState.active && dragState.targetIdx !== undefined) {
+      const key = DAYS[currentIdx].key;
+      const arr = [...schedule[key]];
+      const from = dragState.srcIdx, to = dragState.targetIdx;
+      if (from !== to) {
+        const [mv] = arr.splice(from,1);
+        arr.splice(to >= from ? Math.min(to,arr.length) : to+1, 0, mv);
+        schedule[key] = arr;
+      }
+    }
+    if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+    document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging','drag-over'));
+    dragState = null;
+    render();
+  };
+  el.addEventListener('touchend', end, { passive:true });
+  el.addEventListener('touchcancel', end, { passive:true });
+}
+
+let copyOpen = false;
+function toggleCopyPanel() {
+  copyOpen = !copyOpen;
+  document.getElementById('copy-content').style.display = copyOpen ? 'block' : 'none';
+  document.getElementById('copy-arrow').textContent = copyOpen ? '▲' : '▼';
+}
+function renderCopyPanel() {
+  const content = document.getElementById('copy-content');
+  content.innerHTML = '';
+  WEEKDAYS.forEach(d => {
+    if (DAYS.indexOf(d) === currentIdx) return;
+    const row = document.createElement('div');
+    row.className = 'copy-day-row';
+    row.innerHTML = '<div><div class="copy-day-name">'+d.label+'</div><div class="copy-day-theme">'+d.theme+'</div></div><button class="copy-btn" onclick="copyToDay(\''+d.key+'\')">複製過去</button>';
+    content.appendChild(row);
+  });
+}
+function copyToDay(targetKey) {
+  schedule[targetKey] = [...schedule[DAYS[currentIdx].key]];
+  showToast('已複製到 '+DAYS.find(d=>d.key===targetKey).label);
+}
+
+render();
+</script>
+</body>
+</html>
