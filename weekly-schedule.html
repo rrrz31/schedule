@@ -11,10 +11,7 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 #header-top { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 14px; }
 #day-label { font-size: 32px; font-weight: 900; color: #fff; line-height: 1; }
 #day-theme { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 5px; }
-#header-btns { display: flex; gap: 8px; align-items: center; }
 #reset-btn { background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 14px; color: #fff; font-size: 12px; cursor: pointer; }
-#save-btn { background: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.1s; }
-#save-btn:active { transform: scale(0.95); }
 #tabs { display: flex; gap: 6px; padding: 0 20px 16px; overflow-x: auto; }
 #tabs::-webkit-scrollbar { display: none; }
 .tab { flex-shrink: 0; border: none; border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
@@ -30,7 +27,7 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 .section-label { font-size: 11px; color: #b0a090; font-weight: 600; letter-spacing: 0.1em; margin: 12px 2px 6px; }
 .block {
   border-radius: 14px; padding: 13px 16px; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 10px;
   position: relative; border: 1.5px solid #ede8e0; border-left-width: 5px;
   user-select: none; touch-action: pan-y;
   transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s;
@@ -39,10 +36,11 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 .block.done .block-name { text-decoration: line-through; text-decoration-thickness: 2px; }
 .block.dragging { opacity: 0.3; touch-action: none; }
 .block.drag-over { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.13); }
+.block.timing { box-shadow: 0 0 0 2px currentColor; }
 .block-ghost {
   position: fixed; pointer-events: none; z-index: 999;
   border-radius: 14px; padding: 13px 16px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 10px;
   box-shadow: 0 10px 32px rgba(0,0,0,0.22);
   transform: scale(1.05) rotate(1.5deg);
   width: calc(100vw - 32px); left: 16px;
@@ -55,11 +53,61 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
   font-size: 12px; transition: all 0.2s;
 }
 .block.done .check-circle { background: #52b788; border-color: #52b788; color: #fff; }
-.block-emoji { font-size: 22px; flex-shrink: 0; }
+.block-emoji { font-size: 20px; flex-shrink: 0; }
 .block-info { flex: 1; min-width: 0; }
 .block-name { font-size: 15px; font-weight: 700; transition: all 0.2s; }
 .block-desc { font-size: 11px; color: #b0a090; margin-top: 2px; }
-.block-handle { font-size: 18px; color: #d0c8bc; flex-shrink: 0; padding: 4px 0 4px 8px; }
+.block-handle { font-size: 18px; color: #d0c8bc; flex-shrink: 0; padding: 4px 0 4px 4px; }
+
+/* Timer button */
+.timer-btn {
+  flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid currentColor;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+.timer-btn:active { transform: scale(0.9); }
+.timer-btn.running { background: currentColor; }
+.timer-btn.running span { filter: brightness(10); }
+
+/* Timer overlay */
+#timer-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+#timer-overlay.show { opacity: 1; pointer-events: all; }
+#timer-card {
+  background: #fff; border-radius: 28px;
+  padding: 36px 40px; text-align: center;
+  width: calc(100vw - 64px); max-width: 320px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+#timer-emoji { font-size: 40px; margin-bottom: 8px; }
+#timer-name { font-size: 18px; font-weight: 700; color: #2a2218; margin-bottom: 4px; }
+#timer-display {
+  font-size: 64px; font-weight: 900; letter-spacing: -2px;
+  margin: 20px 0; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+#timer-bar-bg { background: #f0ebe0; border-radius: 10px; height: 8px; margin-bottom: 24px; overflow: hidden; }
+#timer-bar { height: 100%; border-radius: 10px; transition: width 0.5s linear; }
+.timer-btns { display: flex; gap: 12px; justify-content: center; }
+.timer-action {
+  flex: 1; border: none; border-radius: 14px;
+  padding: 14px; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.timer-action:active { transform: scale(0.96); }
+#timer-stop { background: #f5f0ea; color: #6a5a4a; }
+#timer-done-btn { color: #fff; }
+
 .custom-input {
   width: 100%; border: none; background: transparent;
   font-size: 11px; color: #6a5a4a; outline: none;
@@ -82,13 +130,11 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 </style>
 </head>
 <body>
+
 <div id="header">
   <div id="header-top">
     <div><div id="day-label"></div><div id="day-theme"></div></div>
-    <div id="header-btns">
-      <button id="reset-btn" onclick="resetDay()">重置</button>
-      <button id="save-btn" onclick="saveState()">💾 儲存</button>
-    </div>
+    <button id="reset-btn" onclick="resetDay()">重置</button>
   </div>
   <div id="tabs"></div>
 </div>
@@ -99,7 +145,7 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
   <div id="stat-done"></div>
 </div>
 <div id="blocks-container">
-  <div class="hint">點擊劃掉完成 · 長按 ⠿ 拖移</div>
+  <div class="hint">點擊劃掉完成 · ⏱ 倒數 · 長按 ⠿ 拖移</div>
   <div id="block-list"></div>
 </div>
 <div id="copy-panel">
@@ -111,6 +157,20 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 </div>
 <div id="dots"></div>
 <div id="toast"></div>
+
+<!-- Timer overlay -->
+<div id="timer-overlay" onclick="handleOverlayClick(event)">
+  <div id="timer-card">
+    <div id="timer-emoji">⏱</div>
+    <div id="timer-name"></div>
+    <div id="timer-display">00:00</div>
+    <div id="timer-bar-bg"><div id="timer-bar"></div></div>
+    <div class="timer-btns">
+      <button class="timer-action" id="timer-stop" onclick="stopTimer()">停止</button>
+      <button class="timer-action" id="timer-done-btn" onclick="timerMarkDone()">完成 ✓</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const BT = {
@@ -154,37 +214,117 @@ WEEKDAYS.forEach(d => { schedule[d.key] = [...d.blocks]; });
 let completed = {};
 let customText = {};
 
-// ── load state passed in from Shortcut via URL hash ──
-function loadFromHash() {
+// weekly auto-reset
+const WEEK_KEY = 'wk_week', DONE_KEY = 'wk_done', CUSTOM_KEY = 'wk_custom';
+function getWeekNum() {
+  const d = new Date(), j = new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-j)/86400000 + j.getDay()+1)/7);
+}
+(function init() {
   try {
-    const hash = location.hash.slice(1);
-    if (!hash) return;
-    const data = JSON.parse(decodeURIComponent(atob(hash)));
-    if (data.completed) completed = data.completed;
-    if (data.customText) customText = data.customText;
-    if (data.schedule) {
-      Object.keys(data.schedule).forEach(k => { schedule[k] = data.schedule[k]; });
+    const saved = localStorage.getItem(WEEK_KEY);
+    const now = String(getWeekNum());
+    if (saved !== now) {
+      localStorage.setItem(WEEK_KEY, now);
+      localStorage.removeItem(DONE_KEY);
+      localStorage.removeItem(CUSTOM_KEY);
+    } else {
+      const r = localStorage.getItem(DONE_KEY); if (r) completed = JSON.parse(r);
+      const c = localStorage.getItem(CUSTOM_KEY); if (c) customText = JSON.parse(c);
     }
-    // clear hash so it doesn't linger
-    history.replaceState(null, '', location.pathname);
+  } catch(e) {}
+})();
+
+function save() {
+  try {
+    localStorage.setItem(DONE_KEY, JSON.stringify(completed));
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(customText));
   } catch(e) {}
 }
-loadFromHash();
 
-// ── save: encode state and call 儲存課表 shortcut ──
-function saveState() {
-  const data = { completed, customText, schedule };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
-  // call the 儲存課表 shortcut with encoded state as input
-  window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('儲存課表') + '&input=' + encodeURIComponent(encoded);
-  showToast('已儲存 ✓');
+// ---- TIMER ----
+let timerState = null; // { blockType, dayKey, idx, totalSec, remainSec, interval }
+
+function startTimer(type, dayKey, idx) {
+  const t = BT[type];
+  if (!t || t.min === 0) return;
+  if (timerState) stopTimer(false);
+
+  const totalSec = t.min * 60;
+  timerState = { type, dayKey, idx, totalSec, remainSec: totalSec };
+
+  document.getElementById('timer-emoji').textContent = t.emoji;
+  document.getElementById('timer-name').textContent = t.label;
+  document.getElementById('timer-done-btn').style.background = t.color;
+  document.getElementById('timer-bar').style.background = t.color;
+  updateTimerDisplay();
+  document.getElementById('timer-overlay').classList.add('show');
+
+  timerState.interval = setInterval(() => {
+    timerState.remainSec--;
+    updateTimerDisplay();
+    if (timerState.remainSec <= 0) {
+      clearInterval(timerState.interval);
+      timerFinished();
+    }
+  }, 1000);
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+function updateTimerDisplay() {
+  if (!timerState) return;
+  const m = Math.floor(timerState.remainSec / 60);
+  const s = timerState.remainSec % 60;
+  document.getElementById('timer-display').textContent =
+    String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  const pct = (timerState.remainSec / timerState.totalSec) * 100;
+  document.getElementById('timer-bar').style.width = pct + '%';
+}
+
+function timerFinished() {
+  document.getElementById('timer-display').textContent = '00:00';
+  document.getElementById('timer-bar').style.width = '0%';
+  // beep
+  playBeep();
+  if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+  document.getElementById('timer-stop').textContent = '關閉';
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.4, 0.8].forEach(offset => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0.5, ctx.currentTime + offset);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.3);
+      o.start(ctx.currentTime + offset);
+      o.stop(ctx.currentTime + offset + 0.3);
+    });
+  } catch(e) {}
+}
+
+function stopTimer(closeOverlay = true) {
+  if (timerState) { clearInterval(timerState.interval); timerState = null; }
+  if (closeOverlay) {
+    document.getElementById('timer-overlay').classList.remove('show');
+    document.getElementById('timer-stop').textContent = '停止';
+    render();
+  }
+}
+
+function timerMarkDone() {
+  if (timerState) {
+    completed[timerState.dayKey + ':' + timerState.idx] = true;
+    save();
+  }
+  stopTimer(true);
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('timer-overlay')) stopTimer(true);
 }
 
 function getIncomplete() {
@@ -205,10 +345,6 @@ function render() {
   document.getElementById('day-label').textContent = day.label;
   document.getElementById('day-theme').textContent = day.theme;
 
-  // save btn color matches day
-  const sb = document.getElementById('save-btn');
-  sb.style.color = day.color;
-
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
   DAYS.forEach((d, i) => {
@@ -216,12 +352,8 @@ function render() {
     btn.className = 'tab ' + (i === currentIdx ? 'active' : 'inactive');
     btn.style.color = i === currentIdx ? day.color : 'rgba(255,255,255,0.85)';
     let suffix = d.key === todayKey ? ' ●' : '';
-    if (d.weekend) {
-      if (getIncomplete().length > 0) suffix += ' !';
-    } else {
-      const dc = schedule[d.key].filter((_,idx) => completed[d.key+':'+idx]).length;
-      if (dc > 0) suffix += ' ✓';
-    }
+    if (d.weekend) { if (getIncomplete().length > 0) suffix += ' !'; }
+    else { const dc = schedule[d.key].filter((_,idx) => completed[d.key+':'+idx]).length; if (dc > 0) suffix += ' ✓'; }
     btn.textContent = d.label.replace('週','') + suffix;
     btn.onclick = () => { currentIdx = i; render(); };
     tabsEl.appendChild(btn);
@@ -235,12 +367,10 @@ function render() {
     document.getElementById('reset-btn').style.display = 'none';
     document.getElementById('stat-label').textContent = '本週未完成';
     document.getElementById('stat-unit').textContent = '項';
-
     const inc = getIncomplete();
     const wdone = inc.filter(item => !!completed['weekend:'+item.srcDay.key+':'+item.idx]).length;
     document.getElementById('stat-total').textContent = inc.length - wdone;
     document.getElementById('stat-done').textContent = wdone > 0 ? '已補完 '+wdone+' 項' : '';
-
     if (inc.length === 0) {
       list.innerHTML = '<div class="empty-weekend">🎉<br>本週全部完成了！<br>好好休息</div>';
     } else {
@@ -257,26 +387,18 @@ function render() {
         const isDone = !!completed[wKey];
         const el = document.createElement('div');
         el.className = 'block' + (isDone ? ' done' : '');
-        el.style.background = item.t.bg;
-        el.style.borderColor = item.t.border;
+        el.style.background = item.t.bg; el.style.borderColor = item.t.border;
         el.style.borderLeftColor = isDone ? '#c0c0c0' : item.t.color;
         el.innerHTML =
           '<div class="check-circle">'+(isDone?'✓':'')+'</div>'+
           '<div class="block-emoji">'+item.t.emoji+'</div>'+
-          '<div class="block-info">'+
-            '<div class="block-name" style="color:'+(isDone?'#aaa':item.t.color)+'">'+item.t.label+'</div>'+
-            '<div class="block-desc">'+item.t.desc+'</div>'+
-          '</div>';
-        el.addEventListener('click', () => {
-          completed[wKey] = !completed[wKey];
-          render();
-        });
+          '<div class="block-info"><div class="block-name" style="color:'+(isDone?'#aaa':item.t.color)+'">'+item.t.label+'</div><div class="block-desc">'+item.t.desc+'</div></div>'+
+          '<button class="timer-btn" style="color:'+item.t.color+'" onclick="event.stopPropagation();startTimer(\''+item.type+'\',\''+item.srcDay.key+'\','+item.idx+')"><span>⏱</span></button>';
+        el.addEventListener('click', () => { completed[wKey] = !completed[wKey]; save(); render(); });
         list.appendChild(el);
       });
     }
-
-    renderDots();
-    return;
+    renderDots(); return;
   }
 
   document.getElementById('copy-panel').style.display = '';
@@ -296,15 +418,18 @@ function render() {
   blocks.forEach((type, idx) => {
     const t = BT[type]; if (!t) return;
     const isDone = !!completed[day.key+':'+idx];
+    const isRest = t.min === 0;
     const el = document.createElement('div');
     el.className = 'block' + (isDone ? ' done' : '');
-    el.style.background = t.bg;
-    el.style.borderColor = t.border;
+    el.style.background = t.bg; el.style.borderColor = t.border;
     el.style.borderLeftColor = isDone ? '#c0c0c0' : t.color;
     el.dataset.idx = idx;
     const ckey = day.key+':c:'+idx;
     const customHtml = t.custom
       ? '<input class="custom-input" placeholder="輸入今天的內容…" value="'+(customText[ckey]||'').replace(/"/g,'&quot;')+'" data-ckey="'+ckey+'" oninput="saveCustom(this)" onclick="event.stopPropagation()">'
+      : '';
+    const timerHtml = !isRest
+      ? '<button class="timer-btn" style="color:'+t.color+'" onclick="event.stopPropagation();startTimer(\''+type+'\',\''+day.key+'\','+idx+')"><span>⏱</span></button>'
       : '';
     el.innerHTML =
       '<div class="check-circle">'+(isDone?'✓':'')+'</div>'+
@@ -314,11 +439,12 @@ function render() {
         '<div class="block-desc">'+t.desc+'</div>'+
         customHtml+
       '</div>'+
+      timerHtml+
       '<div class="block-handle" data-handle="1">⠿</div>';
     el.addEventListener('click', e => {
-      if (e.target.closest('[data-handle]') || e.target.tagName === 'INPUT') return;
+      if (e.target.closest('[data-handle]') || e.target.tagName === 'INPUT' || e.target.closest('.timer-btn')) return;
       completed[day.key+':'+idx] = !completed[day.key+':'+idx];
-      render();
+      save(); render();
     });
     setupDrag(el, idx);
     list.appendChild(el);
@@ -342,13 +468,19 @@ function renderDots() {
   });
 }
 
-function saveCustom(input) { customText[input.dataset.ckey] = input.value; }
+function saveCustom(input) { customText[input.dataset.ckey] = input.value; save(); }
 
 function resetDay() {
   const key = DAYS[currentIdx].key;
   schedule[key] = [...DAYS.find(d => d.key === key).blocks];
   Object.keys(completed).forEach(k => { if (k.startsWith(key+':')) delete completed[k]; });
-  render();
+  save(); render();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
 }
 
 let dragState = null, ghostEl = null;
@@ -360,8 +492,7 @@ function setupDrag(el, idx) {
     dragState = { srcIdx:idx, active:false };
     dragState.timer = setTimeout(() => {
       if (!dragState) return;
-      dragState.active = true;
-      el.classList.add('dragging');
+      dragState.active = true; el.classList.add('dragging');
       const rect = el.getBoundingClientRect();
       ghostEl = el.cloneNode(true);
       ghostEl.classList.add('block-ghost');
@@ -402,8 +533,7 @@ function setupDrag(el, idx) {
     }
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
     document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging','drag-over'));
-    dragState = null;
-    render();
+    dragState = null; render();
   };
   el.addEventListener('touchend', end, { passive:true });
   el.addEventListener('touchcancel', end, { passive:true });
