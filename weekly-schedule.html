@@ -11,10 +11,7 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 #header-top { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 14px; }
 #day-label { font-size: 32px; font-weight: 900; color: #fff; line-height: 1; }
 #day-theme { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 5px; }
-#header-btns { display: flex; gap: 8px; align-items: center; }
 #reset-btn { background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 14px; color: #fff; font-size: 12px; cursor: pointer; }
-#save-btn { background: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.1s; }
-#save-btn:active { transform: scale(0.95); }
 #tabs { display: flex; gap: 6px; padding: 0 20px 16px; overflow-x: auto; }
 #tabs::-webkit-scrollbar { display: none; }
 .tab { flex-shrink: 0; border: none; border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
@@ -85,10 +82,7 @@ body { background: #faf8f5; font-family: 'PingFang TC','Noto Sans TC',sans-serif
 <div id="header">
   <div id="header-top">
     <div><div id="day-label"></div><div id="day-theme"></div></div>
-    <div id="header-btns">
-      <button id="reset-btn" onclick="resetDay()">重置</button>
-      <button id="save-btn" onclick="saveState()">💾 儲存</button>
-    </div>
+    <button id="reset-btn" onclick="resetDay()">重置</button>
   </div>
   <div id="tabs"></div>
 </div>
@@ -154,37 +148,31 @@ WEEKDAYS.forEach(d => { schedule[d.key] = [...d.blocks]; });
 let completed = {};
 let customText = {};
 
-// ── load state passed in from Shortcut via URL hash ──
-function loadFromHash() {
+const WEEK_KEY = 'wk_week', DONE_KEY = 'wk_done', CUSTOM_KEY = 'wk_custom';
+function getWeekNum() {
+  const d = new Date(), j = new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-j)/86400000 + j.getDay()+1)/7);
+}
+(function init() {
   try {
-    const hash = location.hash.slice(1);
-    if (!hash) return;
-    const data = JSON.parse(decodeURIComponent(atob(hash)));
-    if (data.completed) completed = data.completed;
-    if (data.customText) customText = data.customText;
-    if (data.schedule) {
-      Object.keys(data.schedule).forEach(k => { schedule[k] = data.schedule[k]; });
+    const saved = localStorage.getItem(WEEK_KEY);
+    const now = String(getWeekNum());
+    if (saved !== now) {
+      localStorage.setItem(WEEK_KEY, now);
+      localStorage.removeItem(DONE_KEY);
+      localStorage.removeItem(CUSTOM_KEY);
+    } else {
+      const r = localStorage.getItem(DONE_KEY); if (r) completed = JSON.parse(r);
+      const c = localStorage.getItem(CUSTOM_KEY); if (c) customText = JSON.parse(c);
     }
-    // clear hash so it doesn't linger
-    history.replaceState(null, '', location.pathname);
   } catch(e) {}
-}
-loadFromHash();
+})();
 
-// ── save: encode state and call 儲存課表 shortcut ──
-function saveState() {
-  const data = { completed, customText, schedule };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
-  // call the 儲存課表 shortcut with encoded state as input
-  window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('儲存課表') + '&input=' + encodeURIComponent(encoded);
-  showToast('已儲存 ✓');
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+function save() {
+  try {
+    localStorage.setItem(DONE_KEY, JSON.stringify(completed));
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(customText));
+  } catch(e) { showToast('儲存失敗，請檢查Safari設定'); }
 }
 
 function getIncomplete() {
@@ -205,10 +193,6 @@ function render() {
   document.getElementById('day-label').textContent = day.label;
   document.getElementById('day-theme').textContent = day.theme;
 
-  // save btn color matches day
-  const sb = document.getElementById('save-btn');
-  sb.style.color = day.color;
-
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
   DAYS.forEach((d, i) => {
@@ -216,12 +200,8 @@ function render() {
     btn.className = 'tab ' + (i === currentIdx ? 'active' : 'inactive');
     btn.style.color = i === currentIdx ? day.color : 'rgba(255,255,255,0.85)';
     let suffix = d.key === todayKey ? ' ●' : '';
-    if (d.weekend) {
-      if (getIncomplete().length > 0) suffix += ' !';
-    } else {
-      const dc = schedule[d.key].filter((_,idx) => completed[d.key+':'+idx]).length;
-      if (dc > 0) suffix += ' ✓';
-    }
+    if (d.weekend) { if (getIncomplete().length > 0) suffix += ' !'; }
+    else { const dc = schedule[d.key].filter((_,idx) => completed[d.key+':'+idx]).length; if (dc > 0) suffix += ' ✓'; }
     btn.textContent = d.label.replace('週','') + suffix;
     btn.onclick = () => { currentIdx = i; render(); };
     tabsEl.appendChild(btn);
@@ -235,12 +215,10 @@ function render() {
     document.getElementById('reset-btn').style.display = 'none';
     document.getElementById('stat-label').textContent = '本週未完成';
     document.getElementById('stat-unit').textContent = '項';
-
     const inc = getIncomplete();
     const wdone = inc.filter(item => !!completed['weekend:'+item.srcDay.key+':'+item.idx]).length;
     document.getElementById('stat-total').textContent = inc.length - wdone;
     document.getElementById('stat-done').textContent = wdone > 0 ? '已補完 '+wdone+' 項' : '';
-
     if (inc.length === 0) {
       list.innerHTML = '<div class="empty-weekend">🎉<br>本週全部完成了！<br>好好休息</div>';
     } else {
@@ -257,26 +235,18 @@ function render() {
         const isDone = !!completed[wKey];
         const el = document.createElement('div');
         el.className = 'block' + (isDone ? ' done' : '');
-        el.style.background = item.t.bg;
-        el.style.borderColor = item.t.border;
+        el.style.background = item.t.bg; el.style.borderColor = item.t.border;
         el.style.borderLeftColor = isDone ? '#c0c0c0' : item.t.color;
         el.innerHTML =
           '<div class="check-circle">'+(isDone?'✓':'')+'</div>'+
           '<div class="block-emoji">'+item.t.emoji+'</div>'+
-          '<div class="block-info">'+
-            '<div class="block-name" style="color:'+(isDone?'#aaa':item.t.color)+'">'+item.t.label+'</div>'+
-            '<div class="block-desc">'+item.t.desc+'</div>'+
-          '</div>';
-        el.addEventListener('click', () => {
-          completed[wKey] = !completed[wKey];
-          render();
-        });
+          '<div class="block-info"><div class="block-name" style="color:'+(isDone?'#aaa':item.t.color)+'">'+item.t.label+'</div>'+
+          '<div class="block-desc">'+item.t.desc+'</div></div>';
+        el.addEventListener('click', () => { completed[wKey] = !completed[wKey]; save(); render(); });
         list.appendChild(el);
       });
     }
-
-    renderDots();
-    return;
+    renderDots(); return;
   }
 
   document.getElementById('copy-panel').style.display = '';
@@ -298,8 +268,7 @@ function render() {
     const isDone = !!completed[day.key+':'+idx];
     const el = document.createElement('div');
     el.className = 'block' + (isDone ? ' done' : '');
-    el.style.background = t.bg;
-    el.style.borderColor = t.border;
+    el.style.background = t.bg; el.style.borderColor = t.border;
     el.style.borderLeftColor = isDone ? '#c0c0c0' : t.color;
     el.dataset.idx = idx;
     const ckey = day.key+':c:'+idx;
@@ -318,7 +287,7 @@ function render() {
     el.addEventListener('click', e => {
       if (e.target.closest('[data-handle]') || e.target.tagName === 'INPUT') return;
       completed[day.key+':'+idx] = !completed[day.key+':'+idx];
-      render();
+      save(); render();
     });
     setupDrag(el, idx);
     list.appendChild(el);
@@ -342,13 +311,19 @@ function renderDots() {
   });
 }
 
-function saveCustom(input) { customText[input.dataset.ckey] = input.value; }
+function saveCustom(input) { customText[input.dataset.ckey] = input.value; save(); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
 
 function resetDay() {
   const key = DAYS[currentIdx].key;
   schedule[key] = [...DAYS.find(d => d.key === key).blocks];
   Object.keys(completed).forEach(k => { if (k.startsWith(key+':')) delete completed[k]; });
-  render();
+  save(); render();
 }
 
 let dragState = null, ghostEl = null;
@@ -360,8 +335,7 @@ function setupDrag(el, idx) {
     dragState = { srcIdx:idx, active:false };
     dragState.timer = setTimeout(() => {
       if (!dragState) return;
-      dragState.active = true;
-      el.classList.add('dragging');
+      dragState.active = true; el.classList.add('dragging');
       const rect = el.getBoundingClientRect();
       ghostEl = el.cloneNode(true);
       ghostEl.classList.add('block-ghost');
@@ -402,8 +376,7 @@ function setupDrag(el, idx) {
     }
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
     document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging','drag-over'));
-    dragState = null;
-    render();
+    dragState = null; render();
   };
   el.addEventListener('touchend', end, { passive:true });
   el.addEventListener('touchcancel', end, { passive:true });
